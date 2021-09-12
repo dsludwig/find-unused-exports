@@ -6,6 +6,7 @@ import kleur from 'kleur';
 import CliError from '../private/CliError.mjs';
 import errorConsole from '../private/errorConsole.mjs';
 import reportCliError from '../private/reportCliError.mjs';
+import parseMapping from '../private/parseMapping.mjs';
 import findUnusedExports from '../public/findUnusedExports.mjs';
 
 /**
@@ -21,10 +22,12 @@ async function findUnusedExportsCli() {
       '--module-glob': moduleGlob,
       '--resolve-file-extensions': resolveFileExtensionsList,
       '--resolve-index-files': resolveIndexFiles,
+      '--aliases': aliasList,
     } = arg({
       '--module-glob': String,
       '--resolve-file-extensions': String,
       '--resolve-index-files': Boolean,
+      '--aliases': String,
     });
 
     if (resolveIndexFiles && !resolveFileExtensionsList)
@@ -38,6 +41,9 @@ async function findUnusedExportsCli() {
         ? resolveFileExtensionsList.split(',')
         : undefined,
       resolveIndexFiles,
+      aliases: aliasList
+        ? parseMapping(aliasList)
+        : undefined
     });
 
     // Sort the list so that the results will be deterministic (important for

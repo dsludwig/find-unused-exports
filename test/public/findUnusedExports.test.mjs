@@ -207,6 +207,26 @@ export default (tests) => {
     }
   );
 
+  tests.add(
+    '`findUnusedExports` with option `aliases` resolves top-level package names.',
+    async () => {
+      deepStrictEqual(
+        await findUnusedExports({
+          cwd: fileURLToPath(
+            new URL(
+              '../fixtures/no-unused-exports-alias',
+              import.meta.url
+            )
+          ),
+          aliases: {
+            '@root': '.',
+          }
+        }),
+        {}
+      );
+    }
+  );
+
   tests.add('`findUnusedExports` with option `cwd` not a string.', async () => {
     await rejects(
       findUnusedExports({ cwd: true }),

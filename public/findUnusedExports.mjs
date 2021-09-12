@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { dirname, extname, join, resolve, sep } from 'path';
+import { dirname, extname, join, resolve, sep, relative } from 'path';
 import globby from 'globby';
 import isDirectoryPath from '../private/isDirectoryPath.mjs';
 import scanModuleCode from '../private/scanModuleCode.mjs';
@@ -15,6 +15,7 @@ import scanModuleCode from '../private/scanModuleCode.mjs';
  * @param {string} [options.moduleGlob='**\/*.{mjs,cjs,js}'] JavaScript file glob pattern.
  * @param {Array<string>} [options.resolveFileExtensions] File extensions (without the leading `.`, in preference order) to automatically resolve in extensionless import specifiers. [Import specifier file extensions are mandatory in Node.js](https://nodejs.org/api/esm.html#esm_mandatory_file_extensions); if your project resolves extensionless imports at build time (e.g. [Next.js](https://nextjs.org), via [webpack](https://webpack.js.org)) `['mjs', 'js']` might be appropriate.
  * @param {boolean} [options.resolveIndexFiles=false] Should directory index files be automatically resolved in extensionless import specifiers. [Node.js doesn’t do this by default](https://nodejs.org/api/esm.html#esm_mandatory_file_extensions); if your project resolves extensionless imports at build time (e.g. [Next.js](https://nextjs.org), via [webpack](https://webpack.js.org)) `true` might be appropriate. This option only works if the option `resolveFileExtensions` is used.
+ * @param {object<string, string>} [options.aliases=''] Replace the given prefixes with an alias like webpack resolve or module-alias
  * @returns {object<string, ModuleExports>} Map of module file paths and unused module exports.
  * @example <caption>Ways to `import`.</caption>
  * ```js
@@ -30,6 +31,7 @@ export default async function findUnusedExports({
   moduleGlob = '**/*.{mjs,cjs,js}',
   resolveFileExtensions,
   resolveIndexFiles = false,
+  aliases = {},
 } = {}) {
   if (typeof cwd !== 'string')
     throw new TypeError('Option `cwd` must be a string.');
@@ -86,7 +88,16 @@ export default async function findUnusedExports({
 
   // Bail if the specifier is bare; this tool only scans project files.
   for (const [path, { imports }] of Object.entries(scannedModules))
-    for (const [specifier, moduleImports] of Object.entries(imports))
+    for (let [specifier, moduleImports] of Object.entries(imports)) {
+      for (const [alias, aliasPath] of Object.entries(aliases)) {
+        if (specifier.startsWith(alias)) {
+          const aliasAbsolutePath = resolve(cwd, aliasPath);
+          const aliasRelativePath = relative(resolve(dirname(path)), aliasAbsolutePath)
+          specifier = './' + aliasRelativePath + specifier.substring(alias.length);
+          break;
+        }
+      }
+
       if (specifier.startsWith('.')) {
         const specifierAbsolutePath = resolve(dirname(path), specifier);
         const specifierPossiblePaths = [specifierAbsolutePath];
@@ -133,6 +144,7 @@ export default async function findUnusedExports({
             delete possiblyUnusedExports[importedModulePath];
         }
       }
+    }
 
   return possiblyUnusedExports;
 }
